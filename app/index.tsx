@@ -1,77 +1,140 @@
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
-import { Text } from '@/components/ui/text';
-import { Link, Stack } from 'expo-router';
-import { MoonStarIcon, StarIcon, SunIcon } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
-import * as React from 'react';
-import { Image, type ImageStyle, View } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-const LOGO = {
-  light: require('@/assets/images/react-native-reusables-light.png'),
-  dark: require('@/assets/images/react-native-reusables-dark.png'),
+import datosClima from '../data/datosClima';
+import NavegacionDias from '../components/ui/NavegacionDias';
+
+export default function App() {
+
+const [indiceDia, setIndiceDia] = useState(1);
+
+const diaAnterior = () => {
+if(indiceDia > 0){
+setIndiceDia(indiceDia -1);
+}
 };
 
-const SCREEN_OPTIONS = {
-  title: 'React Native Reusables',
-  headerTransparent: true,
-  headerRight: () => <ThemeToggle />,
+const siguienteDia = () => {
+if(indiceDia < datosClima.length -1){
+setIndiceDia(indiceDia +1);
+}
 };
 
-const IMAGE_STYLE: ImageStyle = {
-  height: 76,
-  width: 76,
-};
+const climaActual = datosClima[indiceDia];
 
-export default function Screen() {
-  const { colorScheme } = useColorScheme();
+return (
 
-  return (
-    <>
-      <Stack.Screen options={SCREEN_OPTIONS} />
-      <View className="flex-1 items-center justify-center gap-8 p-4">
-        <Image source={LOGO[colorScheme ?? 'light']} style={IMAGE_STYLE} resizeMode="contain" />
-        <View className="gap-2 p-4">
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            1. Edit <Text variant="code">app/index.tsx</Text> to get started.
-          </Text>
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            2. Save to see your changes instantly.
-          </Text>
-        </View>
-        <View className="flex-row gap-2">
-          <Link href="https://reactnativereusables.com" asChild>
-            <Button>
-              <Text>Browse the Docs</Text>
-            </Button>
-          </Link>
-          <Link href="https://github.com/founded-labs/react-native-reusables" asChild>
-            <Button variant="ghost">
-              <Text>Star the Repo</Text>
-              <Icon as={StarIcon} />
-            </Button>
-          </Link>
-        </View>
-      </View>
-    </>
-  );
+<View style={styles.container} testID="screen-weather">
+
+<NavegacionDias
+fecha={climaActual.date}
+diaAnterior={diaAnterior}
+siguienteDia={siguienteDia}
+/>
+
+<Text
+style={styles.city}
+testID="header-city"
+>
+TOKYO
+</Text>
+
+
+<View
+style={styles.icon}
+testID={`icon-weather-${climaActual.condition}`}
+>
+
+<Text style={styles.weatherIcon}>
+{climaActual.condition === 'Sunny' && '☀'}
+{climaActual.condition === 'Rain' && '☂'}
+{climaActual.condition === 'Cloudy' && '☁'}
+</Text>
+
+</View>
+
+
+<Text
+style={styles.temp}
+testID="temp-current"
+>
+{climaActual.current}°
+</Text>
+
+
+<View style={styles.minMax}>
+<Text testID="temp-min">
+{climaActual.min}°
+</Text>
+
+<Text testID="temp-max">
+{climaActual.max}°
+</Text>
+</View>
+
+
+<View style={styles.metrics}>
+
+<View style={styles.metricBox} testID="metric-item">
+<Text>💧 {climaActual.humidity}</Text>
+</View>
+
+<View style={styles.metricBox} testID="metric-item">
+<Text>🌡 {climaActual.pressure}</Text>
+</View>
+
+<View style={styles.metricBox} testID="metric-item">
+<Text>🌬 {climaActual.wind}</Text>
+</View>
+
+</View>
+
+</View>
+
+);
+
 }
 
-const THEME_ICONS = {
-  light: SunIcon,
-  dark: MoonStarIcon,
-};
+const styles = StyleSheet.create({
 
-function ThemeToggle() {
-  const { colorScheme, toggleColorScheme } = useColorScheme();
+container:{
+flex:1,
+backgroundColor:'#2977E3',
+justifyContent:'center',
+alignItems:'center'
+},
 
-  return (
-    <Button
-      onPressIn={toggleColorScheme}
-      size="icon"
-      variant="ghost"
-      className="ios:size-9 rounded-full web:mx-4">
-      <Icon as={THEME_ICONS[colorScheme ?? 'light']} className="size-5" />
-    </Button>
-  );
+city:{
+fontSize:24,
+fontWeight:'bold',
+marginBottom:20
+},
+
+icon:{
+marginBottom:20
+},
+
+weatherIcon:{
+fontSize:100
+},
+
+temp:{
+fontSize:48,
+fontWeight:'bold'
+},
+
+minMax:{
+flexDirection:'row',
+gap:20,
+marginBottom:20
+},
+
+metrics:{
+gap:10
+},
+
+metricBox:{
+marginBottom:10
 }
+
+});
