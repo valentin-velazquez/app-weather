@@ -1,76 +1,14 @@
-import { View, Text, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import * as Location from 'expo-location';
+import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
 import { Feather } from '@expo/vector-icons';
 import NavegacionDias from '../components/ui/NavegacionDias';
+import { useClima } from '../hooks/useClima';
 
 export default function App() {
-
-  const [indiceDia, setIndiceDia] = useState(1);
-  const [clima, setClima] = useState<any>(null);
-  const [diasClima, setDiasClima] = useState<any[]>([]);
-
-  useEffect(() => {
-    const obtenerClima = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-
-      const ubicacion = await Location.getCurrentPositionAsync({});
-      const coords = `${ubicacion.coords.latitude},${ubicacion.coords.longitude}`;
-
-      const respuestaForecast = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${process.env.EXPO_PUBLIC_WEATHER_API_KEY}&q=${coords}&days=2`
-      );2
-      const datosForecast = await respuestaForecast.json();
-
-      const ayer = new Date();
-      ayer.setDate(ayer.getDate() - 1);
-      const fechaAyer = `${ayer.getFullYear()}-${String(ayer.getMonth()+1).padStart(2,'0')}-${String(ayer.getDate()).padStart(2,'0')}`;
-
-      const respuestaHistory = await fetch(
-        `https://api.weatherapi.com/v1/history.json?key=${process.env.EXPO_PUBLIC_WEATHER_API_KEY}&q=${coords}&dt=${fechaAyer}`
-      );
-      const datosHistory = await respuestaHistory.json();
-
-      setClima(datosForecast);
-      setDiasClima([
-        datosHistory.forecast.forecastday[0],
-        datosForecast.forecast.forecastday[0],
-        datosForecast.forecast.forecastday[1]
-      ]);
-    };
-
-    obtenerClima();
-  }, []);
-
-  const diaAnterior = () => {
-    if (indiceDia > 0) setIndiceDia(prev => prev - 1);
-  };
-
-  const siguienteDia = () => {
-    if (indiceDia < 2) setIndiceDia(prev => prev + 1);
-  };
+  const { indiceDia, clima, diasClima, irAlDiaAnterior, irAlDiaSiguiente } = useClima();
 
   const diaActual = diasClima[indiceDia];
-
-  const getIconoClima = (condicion: string): any => {
-    if (!condicion) return 'sun';
-    const c = condicion.toLowerCase();
-    if (c.includes('sunny') || c.includes('clear')) return 'sun';
-    if (c.includes('thunder') || c.includes('storm')) return 'cloud-lightning';
-    if (c.includes('snow') || c.includes('blizzard')) return 'cloud-snow';
-    if (c.includes('rain') || c.includes('drizzle')) return 'cloud-rain';
-    if (c.includes('overcast') || c.includes('cloud')) return 'cloud';
-    if (c.includes('fog') || c.includes('mist')) return 'cloud-drizzle';
-    return 'sun';
-  };
-
-  const formatearFecha = (fecha: string) => {
-    if (!fecha) return '';
-    const [, mes, dia] = fecha.split('-');
-    return `${parseInt(mes)}/${parseInt(dia)}`;
-  };
-
   const condicion = diaActual?.day?.condition?.text || '';
 
   return (
@@ -83,8 +21,8 @@ export default function App() {
           fechaAnterior={formatearFecha(diasClima[indiceDia - 1]?.date)}
           fechaActual={formatearFecha(diaActual?.date)}
           fechaSiguiente={formatearFecha(diasClima[indiceDia + 1]?.date)}
-          diaAnterior={diaAnterior}
-          siguienteDia={siguienteDia}
+          diaAnterior={irAlDiaAnterior}
+          siguienteDia={irAlDiaSiguiente}
           indiceDia={indiceDia}
           totalDias={diasClima.length}
         />
@@ -93,9 +31,9 @@ export default function App() {
           {clima?.location?.name?.toUpperCase()}
         </Text>
 
-        <View style={styles.iconContainer} testID="icon-weather">
+        <View style={styles.iconContainer} testID={`icon-weather-${obtenerIconoDelClima(condicion)}`}>
           <Feather
-            name={getIconoClima(condicion)}
+            name={obtenerIconoDelClima(condicion)}
             size={160}
             color="#000000"
             strokeWidth={1}
@@ -104,51 +42,41 @@ export default function App() {
 
         <View style={styles.metrics}>
           <View style={styles.metricRow} testID="metric-item">
-            <Feather name="droplet" size={14} color="#000000" />
-            <Text style={styles.metricValue}>{diaActual?.day?.avghumidity}%</Text>
-            
+            <Feather testID="metric-icon" name="droplet" size={14} color="#000000" />
+            <Text testID="metric-value" style={styles.metricValue}>{diaActual?.day?.avghumidity}%</Text>
           </View>
           <View style={styles.metricRow} testID="metric-item">
-            <Feather name="activity" size={14} color="#000000" />
-            <Text style={styles.metricValue}>{diaActual?.hour?.[12]?.pressure_mb} hPa</Text>
+            <Feather testID="metric-icon" name="activity" size={14} color="#000000" />
+            <Text testID="metric-value" style={styles.metricValue}>{diaActual?.hour?.[12]?.pressure_mb} hPa</Text>
           </View>
           <View style={styles.metricRow} testID="metric-item">
-            <Feather name="wind" size={14} color="#000000" />
-            <Text style={styles.metricValue}>{diaActual?.day?.maxwind_kph} m/s</Text>
+            <Feather testID="metric-icon" name="wind" size={14} color="#000000" />
+            <Text testID="metric-value" style={styles.metricValue}>{diaActual?.day?.maxwind_kph} m/s</Text>
           </View>
         </View>
 
-        {/* Barra inferior */}
         <View style={styles.tempBar}>
-
           <View style={styles.tempBarInner}>
-
-            {/* Izquierda: día anterior */}
             <Text style={styles.tempValue}>
               {diasClima[indiceDia - 1]?.day?.avgtemp_c != null
                 ? `${diasClima[indiceDia - 1].day.avgtemp_c}°`
                 : ''}
             </Text>
-
-            {/* Centro: día actual */}
             <Text style={styles.tempValueActive} testID="temp-current">
               {diaActual?.day?.avgtemp_c}°
             </Text>
-
-            {/* Derecha: día siguiente */}
             <Text style={styles.tempValue}>
               {diasClima[indiceDia + 1]?.day?.avgtemp_c != null
                 ? `${diasClima[indiceDia + 1].day.avgtemp_c}°`
                 : ''}
             </Text>
-
           </View>
 
           <View style={styles.nowContainer}>
             <View style={styles.nowLine} />
             <Text style={styles.nowLabel}>
-  {indiceDia === 0 ? 'AYER' : indiceDia === 1 ? 'HOY' : 'MAÑANA'}
-</Text>
+              {indiceDia === 0 ? 'AYER' : indiceDia === 1 ? 'HOY' : 'MAÑANA'}
+            </Text>
             <View style={styles.nowLine} />
           </View>
 
@@ -160,12 +88,29 @@ export default function App() {
               {diaActual?.day?.maxtemp_c}°
             </Text>
           </View>
-
         </View>
 
       </View>
     </SafeAreaView>
   );
+}
+
+function obtenerIconoDelClima(condicion: string): any {
+  if (!condicion) return 'sun';
+  const c = condicion.toLowerCase();
+  if (c.includes('sunny') || c.includes('clear')) return 'sun';
+  if (c.includes('thunder') || c.includes('storm')) return 'cloud-lightning';
+  if (c.includes('snow') || c.includes('blizzard')) return 'cloud-snow';
+  if (c.includes('rain') || c.includes('drizzle')) return 'cloud-rain';
+  if (c.includes('overcast') || c.includes('cloud')) return 'cloud';
+  if (c.includes('fog') || c.includes('mist')) return 'cloud-drizzle';
+  return 'sun';
+}
+
+function formatearFecha(fecha: string): string {
+  if (!fecha) return '';
+  const [, mes, dia] = fecha.split('-');
+  return `${parseInt(mes)}/${parseInt(dia)}`;
 }
 
 const styles = StyleSheet.create({
